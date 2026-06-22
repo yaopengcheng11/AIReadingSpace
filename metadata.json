@@ -1,0 +1,6 @@
+{
+  "name": "AI Reading Companion",
+  "description": "An AI-guided full-stack reading companion app that segments books, provides pre-reading hints, post-reading recall, modern ties, and compiles gorgeous print-ready HTML journals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
