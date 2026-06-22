@@ -14,7 +14,7 @@ interface ReaderDashboardProps {
 
 export default function ReaderDashboard({ journey, onChangeJourney, onExit }: ReaderDashboardProps) {
   const [activeTab, setActiveTab] = useState<"recall" | "chat">("recall");
-  const [readerSubTab, setReaderSubTab] = useState<"excerpt" | "stories">("excerpt");
+  const [readerSubTab, setReaderSubTab] = useState<"overview" | "reading" | "reflection">("overview");
   const [fontSize, setFontSize] = useState<number>(18); // default serif text size
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -238,10 +238,10 @@ export default function ReaderDashboard({ journey, onChangeJourney, onExit }: Re
   const activeChats = journey.chatHistories[currentDayIndex] || [];
 
   return (
-    <div className="w-full min-h-screen bg-[#f5f4ef] flex flex-col md:flex-row font-sans">
+    <div className="w-full min-h-screen bg-[#f5f4ef] flex flex-col md:flex-row font-sans relative">
       
       {/* LEFT COLUMN: Sidebar Day list Selector */}
-      <div className="w-full md:w-64 bg-stone-900 text-stone-200 flex flex-col border-r border-stone-800 flex-shrink-0">
+      <div className="w-full md:w-64 bg-stone-900 text-stone-200 flex flex-col border-r border-stone-800 flex-shrink-0 md:sticky md:top-0 md:h-screen md:overflow-y-auto">
         
         {/* Header brand details */}
         <div className="p-6 border-b border-stone-800 flex flex-col gap-2">
@@ -356,31 +356,37 @@ export default function ReaderDashboard({ journey, onChangeJourney, onExit }: Re
         {/* Dynamic Reader Sub-Tabs */}
         <div className="flex border-b border-stone-200 bg-stone-50/50 p-1 z-10 sticky top-[53px]">
           <button
-            onClick={() => setReaderSubTab("excerpt")}
+            onClick={() => setReaderSubTab("overview")}
             className={`flex-1 py-1.5 text-center font-serif text-xs font-bold transition-all rounded-lg flex items-center justify-center gap-1.5 ${
-              readerSubTab === "excerpt"
-                ? "bg-white text-stone-900 shadow-2xs border border-stone-200/50"
-                : "text-stone-500 hover:text-stone-800"
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5 text-stone-600" />
-            <span>今日选文与伴读导读</span>
-          </button>
-          <button
-            onClick={() => setReaderSubTab("stories")}
-            className={`flex-1 py-1.5 text-center font-serif text-xs font-bold transition-all rounded-lg flex items-center justify-center gap-1.5 relative ${
-              readerSubTab === "stories"
+              readerSubTab === "overview"
                 ? "bg-white text-stone-900 shadow-2xs border border-stone-200/50"
                 : "text-stone-500 hover:text-stone-800"
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-800" />
-            <span>深度情节与剖碎义理</span>
-            {activeDay.storyAnalyses && activeDay.storyAnalyses.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.2 text-[9px] font-sans bg-stone-200 text-stone-700 rounded-full font-medium">
-                {activeDay.storyAnalyses.length}
-              </span>
-            )}
+            <span>简读导览</span>
+          </button>
+          <button
+            onClick={() => setReaderSubTab("reading")}
+            className={`flex-1 py-1.5 text-center font-serif text-xs font-bold transition-all rounded-lg flex items-center justify-center gap-1.5 ${
+              readerSubTab === "reading"
+                ? "bg-white text-stone-900 shadow-2xs border border-stone-200/50"
+                : "text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 text-stone-600" />
+            <span>原著精读</span>
+          </button>
+          <button
+            onClick={() => setReaderSubTab("reflection")}
+            className={`flex-1 py-1.5 text-center font-serif text-xs font-bold transition-all rounded-lg flex items-center justify-center gap-1.5 relative ${
+              readerSubTab === "reflection"
+                ? "bg-white text-stone-900 shadow-2xs border border-stone-200/50"
+                : "text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+            <span>深度复盘</span>
           </button>
         </div>
 
@@ -399,8 +405,96 @@ export default function ReaderDashboard({ journey, onChangeJourney, onExit }: Re
             </div>
           </div>
 
-          {/* Sub-tab 1: Excerpt and Guide */}
-          {readerSubTab === "excerpt" && (
+          {/* Sub-tab 1: Overview */}
+          {readerSubTab === "overview" && (
+            <div className="space-y-6">
+              {/* Day Summary Review card */}
+              <div className="bg-amber-50/20 border border-amber-900/10 rounded-xl p-5 relative select-text shadow-sm">
+                <div className="absolute top-0 right-0 p-3 font-serif text-stone-300/30 text-5xl select-none pointer-events-none">
+                  📜
+                </div>
+                <h3 className="font-serif text-xs font-bold text-[#8c6239] mb-3 tracking-wider uppercase border-b border-amber-900/5 pb-2">
+                  伴读名家导读 & 重点提炼
+                </h3>
+                <p className="font-sans text-stone-700 leading-relaxed text-xs md:text-sm text-justify">
+                  {activeDay.summary}
+                </p>
+              </div>
+              
+              {/* Pre-reading hints */}
+              {activeDay.hints && activeDay.hints.length > 0 && (
+                <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
+                  <h4 className="text-xs font-bold font-sans uppercase text-stone-400 tracking-widest mb-3 flex items-center gap-1">
+                    📚 今日关键预习概念
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {activeDay.hints.map((hint, idx) => (
+                      <span 
+                        key={idx} 
+                        className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200/50 text-stone-700 text-xs font-medium font-serif"
+                      >
+                        {hint}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Deep Story Analyses */}
+              {activeDay.storyAnalyses && activeDay.storyAnalyses.length > 0 ? (
+                <div className="space-y-4 pt-1">
+                  {activeDay.storyAnalyses.map((story, sIdx) => (
+                    <div key={sIdx} className="bg-stone-50/50 border border-stone-200 rounded-xl p-4 md:p-5 space-y-3.5 select-text shadow-sm">
+                      <div className="border-b border-stone-200 pb-2 flex items-center justify-between">
+                        <h4 className="font-serif font-bold text-sm md:text-base text-stone-950">
+                          {sIdx + 1}. 《{story.storyName}》深度剖析
+                        </h4>
+                      </div>
+                      
+                      <div className="space-y-3 text-xs text-stone-700 leading-relaxed select-text font-sans">
+                        <div className="relative pl-3 border-l-2 border-stone-300">
+                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
+                            🏛️ 时代阶级与大环境
+                          </span>
+                          <p className="font-serif text-stone-600 text-justify">{story.background}</p>
+                        </div>
+                        <div className="relative pl-3 border-l-2 border-stone-300">
+                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
+                            🧠 人物心理与挣扎
+                          </span>
+                          <p className="font-serif text-stone-600 text-justify">{story.psychology}</p>
+                        </div>
+                        <div className="relative pl-3 border-l-2 border-stone-300">
+                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
+                            👑 社会政治地位
+                          </span>
+                          <p className="font-serif text-stone-600 text-justify">{story.socialStatus}</p>
+                        </div>
+                        <div className="relative pl-3 border-l-2 border-stone-300">
+                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
+                            🕸️ 权力与人际关系冲突
+                          </span>
+                          <p className="font-serif text-stone-600 text-justify">{story.socialRelations}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#faf8f4] border-t border-stone-200/60 -mx-4 -mb-4 md:-mx-5 md:-mb-5 p-3.5 md:p-4 rounded-b-xl mt-2 select-text">
+                        <span className="font-sans font-bold text-amber-900 flex items-center gap-1 text-[11px] mb-1">
+                          💡 核心故事义理
+                        </span>
+                        <p className="font-serif text-stone-800 text-xs md:text-sm leading-relaxed text-justify whitespace-normal">
+                          {story.essence}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Sub-tab 2: Excerpt and Guide */}
+          {readerSubTab === "reading" && (
             <div className="space-y-4">
               {/* Book Excerpt with Comparison & Annotations */}
               <div className="space-y-4">
@@ -661,217 +755,93 @@ export default function ReaderDashboard({ journey, onChangeJourney, onExit }: Re
                   </div>
                 )}
               </div>
-
-              {/* Day Summary Review card */}
-              <div className="bg-amber-50/20 border border-amber-900/10 rounded-xl p-5 relative select-text">
-                <div className="absolute top-0 right-0 p-3 font-serif text-stone-300/30 text-5xl select-none pointer-events-none">
-                  📜
-                </div>
-                <h3 className="font-serif text-xs font-bold text-[#8c6239] mb-2 tracking-wider uppercase border-b border-amber-900/5 pb-1 font-serif">
-                  伴读名家导读 & 重点提炼
-                </h3>
-                <p className="font-sans text-stone-700 leading-relaxed text-xs md:text-sm text-justify">
-                  {activeDay.summary}
-                </p>
-              </div>
             </div>
           )}
 
-          {/* Sub-tab 2: Deep Story Analyses */}
-          {readerSubTab === "stories" && (
-            <div className="space-y-4">
-              {activeDay.storyAnalyses && activeDay.storyAnalyses.length > 0 ? (
-                <div className="space-y-4 pt-1">
-                  {activeDay.storyAnalyses.map((story, sIdx) => (
-                    <div key={sIdx} className="bg-stone-50/50 border border-stone-200 rounded-xl p-4 md:p-5 space-y-3.5 select-text">
-                      <div className="border-b border-stone-200 pb-1.5 flex items-center justify-between">
-                        <h4 className="font-serif font-bold text-sm md:text-base text-stone-950">
-                          {sIdx + 1}. 《{story.storyName}》
-                        </h4>
-                        <span className="text-[9px] uppercase font-sans tracking-widest text-stone-500 bg-stone-200/50 px-2 py-0.5 rounded font-medium">
-                          掰开揉碎剖析
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-3 text-xs text-stone-700 leading-relaxed select-text font-sans">
-                        <div className="relative pl-3 border-l-2 border-stone-300">
-                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
-                            🏛️ 时代阶级与大局观大环境
-                          </span>
-                          <p className="font-serif text-stone-600 text-justify">
-                            {story.background}
-                          </p>
-                        </div>
-
-                        <div className="relative pl-3 border-l-2 border-stone-300">
-                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
-                            🧠 人物隐秘心理与犹豫挣扎
-                          </span>
-                          <p className="font-serif text-stone-600 text-justify">
-                            {story.psychology}
-                          </p>
-                        </div>
-
-                        <div className="relative pl-3 border-l-2 border-stone-300">
-                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
-                            👑 社会政治地位与资源窘境
-                          </span>
-                          <p className="font-serif text-stone-600 text-justify">
-                            {story.socialStatus}
-                          </p>
-                        </div>
-
-                        <div className="relative pl-3 border-l-2 border-stone-300">
-                          <span className="font-sans font-bold text-stone-800 text-[10px] block uppercase tracking-wider mb-0.5">
-                            🕸️ 权力、地缘关系与盘根错节冲突
-                          </span>
-                          <p className="font-serif text-stone-600 text-justify">
-                            {story.socialRelations}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#faf8f4] border-t border-stone-200/60 -mx-4 -mb-4 md:-mx-5 md:-mb-5 p-3.5 md:p-4 rounded-b-xl mt-2 select-text">
-                        <span className="font-sans font-bold text-amber-900 flex items-center gap-1 text-[11px] mb-1">
-                          💡 故事核心义理与醍醐灌顶
-                        </span>
-                        <p className="font-serif text-stone-800 text-xs md:text-sm leading-relaxed text-justify whitespace-normal">
-                          {story.essence}
-                        </p>
-                      </div>
+          {/* Sub-tab 3: Reflection */}
+          {readerSubTab === "reflection" && (
+            <div className="space-y-6">
+              {/* Active Recall questions */}
+              <div className="bg-white border border-stone-250 rounded-2xl p-6 shadow-2xs space-y-5">
+                <h4 className="text-sm font-bold font-serif uppercase text-stone-800 tracking-wider flex items-center gap-2 border-b border-stone-100 pb-3">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  读后主动回想与深度反思 (Active Recall)
+                </h4>
+                <p className="text-xs text-stone-500 leading-relaxed font-sans">
+                  利用您所感到的本天思想印记直接写下想法，巩固记忆。
+                </p>
+                
+                <div className="space-y-5">
+                  {activeDay.questions.map((q, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <label className="block text-sm font-serif font-bold text-stone-800 leading-snug">
+                        Q{idx + 1}：{q}
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="记录您的理解..."
+                        value={activeAnswers[idx] || ""}
+                        onChange={(e) => handleAnswerChange(idx, e.target.value)}
+                        className="w-full px-4 py-3 bg-stone-50 text-stone-700 border border-stone-200 rounded-xl font-sans focus:outline-none focus:border-amber-800 text-sm placeholder:text-stone-400 leading-relaxed"
+                      />
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="py-12 border border-dashed border-stone-200 rounded-xl font-serif text-xs text-stone-500 text-center">
-                  本章节以纯理论或纲领性论点为主，无上传或重塑的核心故事。
+              </div>
+
+              {/* Twenty-first Century Modern Connections */}
+              <div className="bg-stone-900 border border-stone-800 text-stone-100 rounded-2xl p-6 relative overflow-hidden shadow-md">
+                <div className="absolute top-0 right-0 p-4 font-serif text-stone-800 text-8xl select-none pointer-events-none">
+                  ⚡
                 </div>
-              )}
+                <h4 className="text-sm font-bold font-sans text-amber-300 tracking-wider mb-4 flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  二十一世纪现代投影与映射
+                </h4>
+                <p className="font-serif text-stone-200 leading-relaxed text-sm md:text-base text-justify">
+                  {activeDay.reflection}
+                </p>
+                <div className="border-t border-stone-800 pt-4 mt-4">
+                  <p className="text-xs uppercase tracking-widest text-amber-300/80 font-bold mb-2">未来宏图展望</p>
+                  <p className="font-sans text-stone-400 text-xs md:text-sm leading-relaxed text-justify">
+                    {activeDay.outlook}
+                  </p>
+                </div>
+              </div>
+
+              {/* Freeform diary / notes */}
+              <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-2xs space-y-3 mt-4">
+                <h4 className="text-sm font-bold font-sans uppercase text-stone-600 tracking-widest flex items-center gap-2">
+                  <Edit3 className="w-4 h-4" />
+                  今日自由感想
+                </h4>
+                <textarea
+                  rows={4}
+                  placeholder="在此记录今日灵感随笔、日记或摘抄笔记..."
+                  value={activeNotes}
+                  onChange={(e) => handleNoteChange(e.target.value)}
+                  className="w-full px-4 py-3 bg-stone-50 text-stone-700 border border-stone-200 rounded-xl font-sans focus:outline-none focus:border-amber-800 text-sm placeholder:text-stone-400"
+                />
+              </div>
             </div>
           )}
 
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Interaction Cockpit (Recall / Companion chatbot) */}
+      {/* RIGHT COLUMN: Interaction Cockpit (AI Companion chatbot) */}
       <div className="w-full md:w-105 flex flex-col bg-stone-50 border-l border-stone-200 flex-shrink-0">
         
-        {/* Interaction Tabs */}
+        {/* Header */}
         <div className="flex border-b border-stone-200 bg-white">
-          <button
-            onClick={() => setActiveTab("recall")}
-            className={`flex-1 py-4 text-center font-serif text-sm font-bold transition-all border-b-2 flex items-center justify-center gap-2 ${
-              activeTab === "recall"
-                ? "border-amber-900 text-amber-900 bg-amber-50/10"
-                : "border-transparent text-stone-500 hover:text-stone-800"
-            }`}
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span>研习思考 & 现代投影</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`flex-1 py-4 text-center font-serif text-sm font-bold transition-all border-b-2 flex items-center justify-center gap-2 ${
-              activeTab === "chat"
-                ? "border-amber-900 text-amber-900 bg-amber-50/10"
-                : "border-transparent text-stone-500 hover:text-stone-800"
-            }`}
-          >
+          <div className="flex-1 py-4 text-center font-serif text-sm font-bold transition-all border-b-2 flex items-center justify-center gap-2 border-amber-900 text-amber-900 bg-amber-50/10">
             <MessageSquare className="w-4 h-4" />
             <span>AI 伴读导师追问</span>
-          </button>
+          </div>
         </div>
 
-        {/* Tab 1: Recall & Society */}
-        {activeTab === "recall" ? (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-            
-            {/* Widget: Pre-reading hints */}
-            {activeDay.hints && activeDay.hints.length > 0 && (
-              <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs">
-                <h4 className="text-xs font-bold font-sans uppercase text-stone-400 tracking-widest mb-3 flex items-center gap-1">
-                  📚 今日预习关键概念 (Socratic Hints)
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {activeDay.hints.map((hint, idx) => (
-                    <span 
-                      key={idx} 
-                      className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-200/50 text-stone-700 text-xs font-medium font-serif"
-                    >
-                      {hint}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Widget: Active Recall questions with user answers */}
-            <div className="bg-white border border-stone-250 rounded-2xl p-5 shadow-2xs space-y-4">
-              <h4 className="text-xs font-bold font-sans uppercase text-stone-400 tracking-widest flex items-center gap-1">
-                ✍️ 读后主动回想与思想写照 (Active Recall)
-              </h4>
-              <p className="text-2xs text-stone-400 leading-relaxed">
-                无需对照原文寻找唯一解，利用您所感到的本天思想印记直接写下想法，此记录将合并归档于您的精美刊物：
-              </p>
-              
-              <div className="space-y-4">
-                {activeDay.questions.map((q, idx) => (
-                  <div key={idx} className="space-y-1.5">
-                    <label className="block text-xs font-serif font-bold text-stone-800 leading-snug">
-                      主观问答 {idx + 1}：{q}
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="点此输入我的理解与反思，字数不限..."
-                      value={activeAnswers[idx] || ""}
-                      onChange={(e) => handleAnswerChange(idx, e.target.value)}
-                      className="w-full px-3 py-2 bg-stone-50 text-stone-700 border border-stone-200 rounded-xl font-sans focus:outline-none focus:border-amber-800 text-xs placeholder:text-stone-400 leading-relaxed"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Widget: Twenty-first Century Modern Connections */}
-            <div className="bg-stone-900 border border-stone-800 text-stone-100 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 font-serif text-stone-800 text-7xl select-none pointer-events-none">
-                ⚡
-              </div>
-              <h4 className="text-xs font-bold font-sans uppercase text-amber-300 tracking-widest mb-3 flex items-center gap-1">
-                <Globe className="w-3.5 h-3.5" />
-                二十一世纪现代投影与映射 (Mirroring)
-              </h4>
-              <p className="font-serif text-stone-200 leading-relaxed text-xs md:text-sm text-justify">
-                {activeDay.reflection}
-              </p>
-              <div className="border-t border-stone-800 pt-3 mt-3">
-                <p className="text-2xs uppercase tracking-widest text-amber-300/80 font-bold mb-1">未来宏图展望</p>
-                <p className="font-sans text-stone-400 text-2xs leading-relaxed text-justify">
-                  {activeDay.outlook}
-                </p>
-              </div>
-            </div>
-
-            {/* Widget: Freeform diary / notes */}
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-2">
-              <h4 className="text-xs font-bold font-sans uppercase text-stone-400 tracking-widest flex items-center gap-1">
-                <Edit3 className="w-3.5 h-3.5" />
-                今日即兴岁末札记 & 自由感想
-              </h4>
-              <textarea
-                rows={3}
-                placeholder="在此记录今日灵感随笔、日记或摘抄笔记。这同样会一并进入最后的排版周刊..."
-                value={activeNotes}
-                onChange={(e) => handleNoteChange(e.target.value)}
-                className="w-full px-3 py-2.5 bg-stone-50 text-stone-700 border border-stone-200 rounded-xl font-sans focus:outline-none focus:border-amber-800 text-xs placeholder:text-stone-300"
-              />
-            </div>
-
-          </div>
-        ) : (
-          
-          /* Tab 2: Live AI Socratic Companion chatbot */
-          <div className="flex-1 flex flex-col min-h-0 bg-stone-50">
+        {/* Live AI Socratic Companion chatbot */}
+        <div className="flex-1 flex flex-col min-h-0 bg-stone-50">
             
             {/* Chat guidance top note */}
             <div className="p-4 bg-amber-50/20 border-b border-stone-200 text-2xs text-stone-500 leading-relaxed flex items-start gap-2">
@@ -947,8 +917,6 @@ export default function ReaderDashboard({ journey, onChangeJourney, onExit }: Re
             </form>
 
           </div>
-        )}
-
       </div>
 
     </div>

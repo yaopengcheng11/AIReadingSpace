@@ -50,15 +50,17 @@ function getAIClient(): GoogleGenAI {
 // Reconstruct paragraphs and group them into blocks
 function cleanRawTextIntoParagraphs(text: string): string[] {
   if (!text) return [];
-  const lines = text.split(/\r?\n/).map(line => line.trim());
+  
+  const lines = text.split(/\r?\n/);
   const paragraphs: string[] = [];
   let currentGroup = "";
 
-  const endingPunctuation = /[。！？；….”」』\.\!\?;\x22]/;
-
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line === "") {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+    
+    // Empty line always means paragraph break
+    if (trimmed === "") {
       if (currentGroup) {
         paragraphs.push(currentGroup);
         currentGroup = "";
@@ -66,20 +68,20 @@ function cleanRawTextIntoParagraphs(text: string): string[] {
       continue;
     }
 
-    if (!currentGroup) {
-      currentGroup = line;
+    // Checking for paragraph indentations (common in ebooks/PDFs to start a new paragraph)
+    const isIndented = /^[ \t\u3000]{2,}/.test(rawLine);
+    
+    if (isIndented && currentGroup) {
+      paragraphs.push(currentGroup);
+      currentGroup = trimmed;
     } else {
-      const lastChar = currentGroup.slice(-1);
-      const isSentenceEnd = endingPunctuation.test(lastChar);
-
-      if (isSentenceEnd) {
-        paragraphs.push(currentGroup);
-        currentGroup = line;
+      if (!currentGroup) {
+        currentGroup = trimmed;
       } else {
         const currentEndsWithAlphanumeric = /[a-zA-Z0-9]$/.test(currentGroup);
-        const lineStartsWithAlphanumeric = /^[a-zA-Z0-9]/.test(line);
+        const lineStartsWithAlphanumeric = /^[a-zA-Z0-9]/.test(trimmed);
         const separator = (currentEndsWithAlphanumeric && lineStartsWithAlphanumeric) ? " " : "";
-        currentGroup += separator + line;
+        currentGroup += separator + trimmed;
       }
     }
   }
@@ -112,6 +114,24 @@ function getParagraphBlocks(text: string, maxBlocks = 60): { id: number; text: s
     });
   }
   return blocks;
+}
+
+async function generateContentWithRetry(ai: any, params: any, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error: any) {
+      if (
+        i < maxRetries - 1 &&
+        (error?.status === "UNAVAILABLE" || error?.status === "DEADLINE_EXCEEDED" || error?.message?.includes("503") || error?.message?.includes("Spikes in demand"))
+      ) {
+        console.warn(`Gemini API 503/504 error, retrying (${i + 1}/${maxRetries})... wait ${2000 * (i + 1)}ms`);
+        await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
 }
 
 // Extractor helper for web URL link
@@ -188,12 +208,13 @@ app.post("/api/start-journey", async (req, res) => {
       parsedContent = await extractPdfText(pdfBase64);
     }
 
-    // Limit the character extraction count to avoid absolute prompt explosion
-    const truncatedContent = parsedContent.slice(0, 40000);
+    // Limit the character extraction count, but Gemini 1.5/3.5 can handle 1M+ tokens comfortably
+    const truncatedContent = parsedContent.slice(0, 2000000);
 
-    // Split text into up to 50 numbered paragraph blocks for semantic analysis
-    const blocks = getParagraphBlocks(truncatedContent, 50);
-    const blockPrompts = blocks.map(b => `[段落块 #${b.id} (字数:${b.text.length})]:\n${b.text.slice(0, 1500)}`).join("\n\n");
+    // Split text into numbered paragraph blocks for semantic analysis.
+    // Ensure we give enough blocks to cover the whole book cleanly.
+    const blocks = getParagraphBlocks(truncatedContent, Math.max(100, days * 15));
+    const blockPrompts = blocks.map(b => `[段落块 #${b.id} (字数:${b.text.length})]:\n${b.text.slice(0, 5000)}`).join("\n\n");
 
     // Call Gemini to generate the core analytical structure
     const ai = getAIClient();
@@ -235,7 +256,7 @@ ${blockPrompts}
 
 如果设定的共读天数超过 10 天，请让所有的输出文字极其凝练精简（例如 summary 控制在 50 字以内），确保能够完整输出。`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -296,22 +317,36 @@ ${blockPrompts}
 
     const parsedJson = JSON.parse(resultText);
     
+    let lastEndId = 0;
+    
     // Inject parsed excerpt segments and word counts into structured days output
-    const enrichedDays = parsedJson.days.map((item: any) => {
+    const enrichedDays = parsedJson.days.map((item: any, index: number) => {
       let excerptStr = "";
       if (blocks.length > 0) {
         let startId = item.startBlockId;
         let endId = item.endBlockId;
         
-        // Handle fallback if values are outside realistic bounds
-        if (typeof startId !== "number" || startId < 1) startId = 1;
-        if (typeof endId !== "number" || endId > blocks.length) endId = blocks.length;
-        if (startId > endId) {
-          const temp = startId;
-          startId = endId;
-          endId = temp;
+        // Enforce strict non-overlapping boundaries
+        if (typeof startId !== "number" || startId <= lastEndId) {
+          startId = lastEndId + 1;
         }
+        if (typeof endId !== "number" || endId < startId) {
+          endId = startId;
+        }
+        
+        // Force the last day to encompass all remaining blocks
+        if (index === parsedJson.days.length - 1) {
+          endId = blocks.length;
+        }
+        
+        if (startId > blocks.length) startId = blocks.length;
+        if (endId > blocks.length) endId = blocks.length;
+        
+        lastEndId = endId;
 
+        item.startBlockId = startId;
+        item.endBlockId = endId;
+        
         // Slice blocks within range inclusive
         const dayBlocks = blocks.filter(b => b.id >= startId && b.id <= endId);
         excerptStr = dayBlocks.map(b => b.text).join("\n\n");
@@ -371,7 +406,7 @@ ${previousLog}
 2. 将回答字数控制在200-300字左右，排版采用段落清晰的中文。
 3. 结尾可以点到为止地留下一句启发性反问，鼓励读者继续思索。`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry(ai, {
       model: "gemini-3.5-flash",
       contents: chatPrompt,
       config: {
@@ -882,7 +917,7 @@ ${paragraphs.map((p: string, idx: number) => `[第 ${idx + 1} 段 (原本)]:\n${
 - "expertAnnotations" 数组的长度必须【严格等于 ${paragraphs.length}】。
 - 每一个元素要和相对应的第 n 段原文严格 1:1 对齐，不能发生段落串行、漏翻译或者漏批注的历史。`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry(ai, {
       model: "gemini-3.5-flash",
       contents: annotationPrompt,
       config: {
